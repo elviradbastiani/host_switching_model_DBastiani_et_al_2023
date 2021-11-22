@@ -65,7 +65,7 @@ call RANDOM_SEED()
 	104 format(I3)	
 		
 
-	Nphost=50
+	Nphost=250
 	N=Nphost
 	ndes=N
 	rmut = 0.025d0	
