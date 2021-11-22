@@ -1,4 +1,4 @@
-Script - Host-switching model
+Script - model
 
 Effect of host-switching on the eco-evolutionary patterns of parasites
 1*Elvira D’Bastiani, 2Débora Princepe, 1,3Karla M Campião, 2 Flavia MD Marquitti, 1,3Walter A Boeger, 1,4Sabrina LB Araujo
@@ -9,6 +9,8 @@ Effect of host-switching on the eco-evolutionary patterns of parasites
 4Departamento de Física, Universidade Federal do Paraná, UFPR
 *Corresponding author: Elvira D’Bastiani e-mail: elviradbastiani@gmail.com
 
+!--------------------------------------------------------------------------------------------------------------------------------------
+
 program HDmodel
 	
 	implicit none
@@ -17,7 +19,7 @@ program HDmodel
 	real :: rmut, Qmin, cte, h2, h1, qij,qinicial, qfinal, deltaq,beta, Prob, betafinal
 	integer :: N, nsteps,nt,Ni, nachou, ipartner, Jindi, ichosen,contmae,contpai, rep, rfinal,sizeH
 	integer :: ii,jj,l1i,l2i,l1j,l2j, i,Nespecie,j,vq,iaux, HH1,HH2,npais,Nphost,ntentmae, nresu, TA,ntent
-	character*15 nameRep,nTempo 
+	character*15 nameRep,nTime 
  	character*15 name
 	integer nu_host, Tprox_evento,nHatual, nh, s, cont, ih,linha_final, ndes, host,deltat
 	integer nger, ances, linha_in,nu_pa_ance,inteiro,m1, m2,auxiliar,m,nfilhos,mae, pai
@@ -25,9 +27,8 @@ program HDmodel
 
 call RANDOM_SEED()
 
-!--------------------------------------------------------------------------------------------------------------------------------------
 	
-	OPEN(UNIT=50,FILE='input_host.txt',STATUS='old')
+	OPEN(UNIT=50,FILE='input_host.txt',STATUS='old')!host evolutionary history 
 	read(50,*) nu_host, sizeH,nsteps, TA 				
 	allocate (M_input(nu_host,3))		
 	M_input=0
@@ -65,7 +66,7 @@ call RANDOM_SEED()
 	104 format(I3)	
 		
 
-	Nphost=250
+	Nphost=50
 	N=Nphost
 	ndes=N
 	rmut = 0.025d0	
@@ -106,10 +107,10 @@ read(51,*) beta, betafinal
 		vq=Nint(100000*beta) 
 		
 		write(name,'(I15)')vq
-		write(nTempo,'(I6)') nsteps  
+		write(nTime,'(I6)') nsteps  
 		
 		OPEN(UNIT=62,FILE='InteractionRep'//trim(adjustl(nameRep))//'beta'//trim(adjustl(name))//'T'//&
-							trim(adjustl(nTempo))//'.txt',STATUS='UNKNOWN')
+							trim(adjustl(nTime))//'.txt',STATUS='UNKNOWN')
 		Do nt = 1, nsteps 
 
 				if(mod(nt,100).eq.0) then 
@@ -217,7 +218,7 @@ read(51,*) beta, betafinal
 				call random_number(h1)
 				HH2=1+Int(h1*float(nHatual))
 					deltat= nt-(nsteps-Mdis(HH1,HH2))
-					Prob=exp(-beta*float(deltat))
+					Prob=exp(-beta*float(deltat))!host-switching probability
 					call random_number(h1) 					
 						if(h1.lt.Prob)then
 							P(i,2)=HH2
@@ -316,7 +317,7 @@ read(51,*) beta, betafinal
 32  continue
 					
 							OPEN(UNIT=61,FILE='FiloParRep'//trim(adjustl(nameRep))//'beta'//trim(adjustl(name))//'T'//&
-							trim(adjustl(nTempo))//'.txt',STATUS='UNKNOWN')!ajustl
+							trim(adjustl(nTime))//'.txt',STATUS='UNKNOWN')!ajustl
 					
 						do j=1, Nespecie 
 							write(61,*) MS(j,1),MS(j,2),MS(j,3),MS(j,4)										
@@ -534,4 +535,6 @@ subroutine sortc(n, a)
 		NV(n)=i1
 	 Enddo	  	
      endsubroutine shuffleRand
-     
+
+
+!--------------------------------------------------------------------------------------------------------------------------------------
