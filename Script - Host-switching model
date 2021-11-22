@@ -1,0 +1,537 @@
+Script - Host-switching model
+
+Effect of host-switching on the eco-evolutionary patterns of parasites
+1*Elvira D’Bastiani, 2Débora Princepe, 1,3Karla M Campião, 2 Flavia MD Marquitti, 1,3Walter A Boeger, 1,4Sabrina LB Araujo
+
+1,3,4Laboratório de Interações Biológicas, Universidade Federal do Paraná, UFPR
+3Departamento de Zoologia, Universidade Federal do Paraná, UFPR
+2Departamento de Física, Universidade Estadual de Campinas, UNICAMP
+4Departamento de Física, Universidade Federal do Paraná, UFPR
+*Corresponding author: Elvira D’Bastiani e-mail: elviradbastiani@gmail.com
+
+program HDmodel
+	
+	implicit none
+	real,ALLOCATABLE :: Q(:,:), Q2(:,:)
+	integer, ALLOCATABLE :: iPair(:,:),P(:,:),P2(:,:),Ms(:,:), Seq(:), Ordem(:),Mdis(:,:),Mdis2(:,:)
+	real :: rmut, Qmin, cte, h2, h1, qij,qinicial, qfinal, deltaq,beta, Prob, betafinal
+	integer :: N, nsteps,nt,Ni, nachou, ipartner, Jindi, ichosen,contmae,contpai, rep, rfinal,sizeH
+	integer :: ii,jj,l1i,l2i,l1j,l2j, i,Nespecie,j,vq,iaux, HH1,HH2,npais,Nphost,ntentmae, nresu, TA,ntent
+	character*15 nameRep,nTempo 
+ 	character*15 name
+	integer nu_host, Tprox_evento,nHatual, nh, s, cont, ih,linha_final, ndes, host,deltat
+	integer nger, ances, linha_in,nu_pa_ance,inteiro,m1, m2,auxiliar,m,nfilhos,mae, pai
+	integer, ALLOCATABLE:: M_input(:,:)
+
+call RANDOM_SEED()
+
+!--------------------------------------------------------------------------------------------------------------------------------------
+	
+	OPEN(UNIT=50,FILE='input_host.txt',STATUS='old')
+	read(50,*) nu_host, sizeH,nsteps, TA 				
+	allocate (M_input(nu_host,3))		
+	M_input=0
+	Do i=1, nu_host
+		read(50,*) M_input(i,1), M_input(i,2), M_input(i,3)
+	Enddo
+	close(50)
+		
+
+	allocate(Ordem(sizeH),Mdis(sizeH,sizeH),Mdis2(sizeH,sizeH))
+	Ordem=0
+	Mdis=0.0
+	OPEN(UNIT=50,FILE='Mdis.txt',STATUS='old')
+	read(50,*)  (Ordem(j), j=1, sizeH)
+
+	Do i=1, sizeH
+		read(50,*)(Mdis2(i,j),j=1,sizeH)
+	Enddo
+	
+		Mdis=0
+
+		Do i=1, sizeH
+			Do j=1, sizeH
+				ii=Ordem(i)
+				jj=Ordem(j)	
+				Mdis(ii,jj)=Mdis2(i,j)		
+			Enddo
+
+		Enddo
+			
+
+
+	101 format(I5,1X,f15.4)	
+	103 FORMAT(I8,5000(1X,I3)) 
+	104 format(I3)	
+		
+
+	Nphost=50
+	N=Nphost
+	ndes=N
+	rmut = 0.025d0	
+	rfinal=50
+	cte = exp(-4.0*rmut)/4.0	
+	nresu=Nint(TA/5.0)
+	Allocate(Q(N,N),Q2(N,N), iPair(N,2),P(N,2),P2(N,2),Ms(ndes*100,4),Seq(N))
+
+
+Qmin=0.5/(1.0+4.0*rmut*N) 
+
+Do rep=1, rfinal 
+write(nameRep,'(I6)') rep	
+
+call random_number(h1)
+
+OPEN(UNIT=51,FILE='input_r.txt',STATUS='old')!our beta is the r parameter
+read(51,*) beta, betafinal
+
+	Do while(beta.le.betafinal)  	
+		N=Nphost					
+		ndes=N
+	deallocate(Q,Q2,iPair,P,P2,Seq)
+	Allocate(Q(N,N),Q2(N,N), iPair(N,2),P(N,2),P2(N,2),Seq(N))											
+
+		MS=0																			
+		MS(:,4)= nsteps															
+		MS(1,1:3)=1																	
+		
+		Q = 1.0																		
+		Q2 = 0.0  																		
+		P=1																
+		P2=0
+		Nespecie=1																	
+		nHatual=1 
+		Tprox_evento=M_input(2,3)														
+
+		vq=Nint(100000*beta) 
+		
+		write(name,'(I15)')vq
+		write(nTempo,'(I6)') nsteps  
+		
+		OPEN(UNIT=62,FILE='InteractionRep'//trim(adjustl(nameRep))//'beta'//trim(adjustl(name))//'T'//&
+							trim(adjustl(nTempo))//'.txt',STATUS='UNKNOWN')
+		Do nt = 1, nsteps 
+
+				if(mod(nt,100).eq.0) then 
+					OPEN(UNIT=66,FILE='status.txt',STATUS='UNKNOWN', position='append')
+					Write(66,*) beta, rep, nt   
+					close(66)
+				endif
+					
+					if(nt.eq.nsteps) then		
+						do j=1, Nespecie 								
+							Do i=1, nHatual
+								cont=count(P(:,2).eq.i.and.P(:,1).eq.j)
+								if(cont.gt.0)		write(62,*) nt, j,i, cont  
+							Enddo	
+						enddo	
+			
+					endif
+
+		Ni=0
+			Do host=1, nHatual
+			npais=count(P(:,2).eq.host)
+			if(npais.le.1) then 
+			OPEN(UNIT=65,FILE='error.txt',STATUS='UNKNOWN', position='append')
+			write(65,*)'error 1: less than 1 parasite in 1 host', npais
+			print*, 'error 1: less than 1 parasite in 1 host ', npais
+			Close(65)
+			go to 32
+			endif
+			
+			do j=1,N
+				if(P(j,2).eq.host) then  
+					linha_in=j	
+					exit
+				endif
+			enddo
+			
+
+			cont=0 	
+			linha_final=linha_in+npais-1
+			
+				contmae=1  
+			    contpai=1 
+				ntentmae=0
+						
+				Do while (cont.lt.ndes)
+				call random_number(h1)
+				ichosen=linha_in+int(h1*npais)
+				Do i=linha_in, linha_final
+					call random_number(h1)
+					ipartner=linha_in+int(h1*npais)
+					if (P(ipartner,2).ne.P(ichosen,2)) then
+						OPEN(UNIT=65,FILE='error.txt',STATUS='UNKNOWN', position='append')
+						write(65,*)'error3 mate hosts, gene', P(ipartner,2), P(ichosen,2), nt
+						write(65,*) 'Linha_in, Linha_fim ', linha_in, linha_final
+						close(65)
+						
+					endif
+					if(ipartner.ne.ichosen)then
+
+						if(Q(ichosen,ipartner).ge.Qmin) then										
+							Ni=Ni+1
+							cont=cont+1
+							iPair(Ni,2) = ipartner												
+							iPair(Ni,1) = ichosen												
+
+							P2(Ni,:)=P(ichosen,:)		
+							exit
+						endif
+					endif 
+				Enddo 
+
+			Enddo	
+		Enddo	
+		
+	Jindi = 1		
+		Do ii = 1, N 	
+			Do jj = Jindi, N
+
+				if(ii.ne.jj) then													
+					l1i = iPair(ii,1)	
+					l2i = iPair(ii,2)									
+					l1j = iPair(jj,1)												
+					l2j = iPair(jj,2) 												
+					
+					qij = cte * (Q(l1i,l1j) + Q(l1i,l2j) + Q(l2i,l1j) + Q(l2i,l2j))		
+					Q2(ii,jj) = qij														
+					Q2(jj,ii) = qij	
+
+					
+				else																
+					Q2(ii,jj) = 1.0d0													
+				endif
+			Enddo	
+			Jindi = Jindi + 1															
+		Enddo	
+
+			Q = Q2		
+			P=P2																	
+	
+
+	if (nHatual.gt.1) then
+		Do i=1, N
+			Do ntent=1,nHatual
+				HH1=P(i,2)
+				call random_number(h1)
+				HH2=1+Int(h1*float(nHatual))
+					deltat= nt-(nsteps-Mdis(HH1,HH2))
+					Prob=exp(-beta*float(deltat))
+					call random_number(h1) 					
+						if(h1.lt.Prob)then
+							P(i,2)=HH2
+							exit
+						endif
+			 enddo 
+		Enddo
+	
+	
+	P2=0
+	cont=1
+	Seq=0
+	Do ih=1, nu_host
+		Do i=1, N
+			if (P(i,2).eq.ih)then
+			P2(cont,:)=P(i,:)
+			Seq(cont)=i
+			cont=cont+1
+			endif
+		enddo
+	enddo	
+	P=P2
+
+		Q=0
+		Do i=1, N
+			Do j=1, N
+				ii=Seq(i)
+				jj=Seq(j)	
+				Q(i,j)=Q2(ii,jj)
+			Enddo
+		Enddo
+   endif		
+	
+	if(mod(nt,nresu).eq.0) then
+	      
+	      call species(Q,P,N,ndes,Qmin,MS,nt, Nespecie,nsteps)		  
+
+	endif
+		 
+ do while (nt.eq.Tprox_evento) 
+		nHatual=nHatual+1 
+		ances=M_input(nHatual,2)
+		linha_in=0	
+		nu_pa_ance=count(P(:,2).eq.ances)  
+		
+		if(nu_pa_ance.eq.0) then
+		OPEN(UNIT=65,FILE='error.txt',STATUS='UNKNOWN', position='append')
+			write(65,*)'error2'
+			close(65)
+		endif
+		
+		do j=1,N
+			if(P(j,2).eq.ances) then  
+				linha_in=j	
+				exit
+			endif
+		enddo
+		
+		inteiro=Nint(float(nu_pa_ance)/2.0)
+		
+		do j=linha_in+inteiro, linha_in+nu_pa_ance-1				
+			P(j,2)=nHatual
+		enddo
+		
+	    N=N+ndes
+		
+		Deallocate(Q2, iPair,P2,Seq)
+ 		allocate(Q2(N,N), iPair(N,2),P2(N,2),Seq(N))
+		
+		Q2=0
+		P2=0
+		
+		Do i=1, N-ndes
+			Do j=1, N-ndes
+				 Q2(i,j)=Q(i,j)
+			Enddo
+			P2(i,:)=P(i,:)
+		Enddo
+		
+		Deallocate(Q, P)
+ 		allocate(Q(N,N),P(N,2))
+		
+		Q=Q2
+        P=P2		
+
+		if(nHatual.lt.nu_host) then
+			Tprox_evento=M_input(nHatual+1,3)	
+			else
+			Tprox_evento=0
+		endif
+		
+		
+	end do 
+	Enddo
+			
+32  continue
+					
+							OPEN(UNIT=61,FILE='FiloParRep'//trim(adjustl(nameRep))//'beta'//trim(adjustl(name))//'T'//&
+							trim(adjustl(nTempo))//'.txt',STATUS='UNKNOWN')!ajustl
+					
+						do j=1, Nespecie 
+							write(61,*) MS(j,1),MS(j,2),MS(j,3),MS(j,4)										
+						enddo	
+						Close(61)
+						Close(62)
+					
+21 continue		
+	read(51,*) beta
+
+	Enddo	
+	close(51)
+	
+enddo
+
+
+end program HDmodel
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!Subrotines!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+subroutine species(Q,P,np,ndes,Qmin,MS,ig, Nespecie,nsteps)  
+	implicit none
+    real:: Q,Qmin,sim,QminEspecie                           			
+	integer :: nn,P,np,MS,Nespecie,nsteps,nmax,ndes,nbus
+	Dimension ::Q(np,np),P(np,2), MS(ndes*100,4)
+	Integer, ALLOCATABLE :: NES(:),Nfreq(:,:),Nv(:),Nlo(:),Abund(:)	
+	integer ::l,ig,i,ii, mva,naux, ncontEsp,nfim,ncont,ngesco,ngrupo,n
+    
+	ALLOCATE(Nv(np), Nlo(np))
+	
+	Nv=0															 
+  	Nlo=0
+	ngrupo=0
+	nfim=0
+	QminEspecie= Qmin/1.5 											
+
+	ALLOCATE(NES(Nespecie),Abund(Nespecie))												
+
+Abund=0
+Do l=1,np															
+	Abund(P(l,1))=Abund(P(l,1))+1									
+Enddo
+Do l=1, Nespecie
+	if(Abund(l).eq.0.and.Ms(l,4).eq.nsteps) Ms(l,4)=ig				
+Enddo																
+
+	Do while(nfim.eq.0)												
+	
+		nfim=1
+		Do l=1,np													
+			if(Nv(l).eq.0)then										
+				nfim=0
+				ngrupo=ngrupo+1			
+				
+				Nv(l)=ngrupo										
+
+				go to 22											
+			endif
+		Enddo
+22      continue
+		nbus=0
+		Do while(nbus.eq.0)
+			
+			nbus=1			
+			Do i=1,np												
+			
+					if(Nv(i).eq.ngrupo.and.Nlo(i).eq.0) then	
+					Nlo(i)=1 
+					Do ii=1,np 
+							if (Nv(ii).eq.0)then
+								if(i.ne.ii)then								
+									
+									sim=Q(i,ii)								
+									if(sim.ge.QminEspecie)then 				
+
+											if(P(i,1).eq.P(ii,1)) then 			
+												nbus=0
+												
+													Nv(ii)=ngrupo 
+												
+												
+											else							
+												if(sim.ge.Qmin) then			
+													
+													if(Nv(ii).eq.0) then		
+														Nv(ii)=ngrupo			
+														nbus=0
+													endif
+												endif
+											endif
+									endif
+								ENDIF
+							endif
+						end do
+					endif
+			End do		
+		End do
+	
+	End do
+
+
+	ALLOCATE(Nfreq(ngrupo,2))										
+	Nes=0														
+	nmax=Nespecie													
+	ncontEsp=0 														
+	Do n=1,nmax 													
+		Nfreq=0													
+		Do i=1,np													
+			mva=(P(i,1))											
+			if(mva.eq.n)then 												
+				Nfreq(nv(i),2)=Nfreq(nv(i),2)+1						
+				Nfreq(nv(i),1)=nv(i)								
+			endif
+		Enddo
+		
+		call sortc(ngrupo,Nfreq)											
+		ngesco=Nfreq(1,1)													
+		if(Nes(n).eq.0)then											
+			Do i=1,np												
+				IF(Nv(i).eq.ngesco)then									
+					P(i,1)=n										
+					Nes(n)=1										
+				endif				
+			Enddo
+		else														
+			print*, 'Caution!: else!!'	
+		
+			Nespecie=Nespecie+1									
+			
+			Do i=1,np													
+					if(Nv(i).eq.Nfreq(1,1))then							
+						P(i,1)=Nespecie	
+						
+					endif
+			enddo
+		endif
+		
+		if(Nes(n).gt.0)	ncontEsp=ncontEsp+1 							
+		if(ngrupo.gt.1) then									
+			do nn=2,ngrupo											
+					if(Nfreq(nn,2).ge.2)then 						 
+						Nespecie=Nespecie+1							
+						ncontEsp=ncontEsp+1 						
+							MS(Nespecie,1)=Nespecie					
+							   MS(Nespecie,2)= n  					
+						      MS(Nespecie,3)=ig		
+
+						Do i=1,np									
+							if(Nv(i).eq.Nfreq(nn,1))then			
+							    P(i,1)=Nespecie							
+												
+							endif
+						enddo
+					Endif
+			Enddo
+		endif
+	enddo
+ 
+      endsubroutine species
+
+!!!!!!!!!!!!!!!!!
+subroutine sortc(n, a)											
+    implicit none
+    INTEGER :: n, i, j, x, x2, a
+    Dimension :: a(n,2)
+
+    DO i = 2, n													
+        x = a(i,2)												
+		x2 = a(i,1)												
+        j = i - 1												
+        DO WHILE (j.ge.1)										
+            if (a(j,2).ge.x) exit								
+            a(j + 1, 2) = a(j,2)								
+			a(j + 1, 1) = a(j,1)							
+			j = j - 1													
+        end do
+        a(j + 1, 2) = x												
+		a(j + 1, 1) = x2										
+	ENDDO	
+
+	end subroutine sortc
+!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	subroutine shuffle (NV,Ni)
+	  IMPLICIT REAL*8 (A-H,O-Z)
+      Dimension::NV(Ni)
+	  
+	  Do n=1,Ni
+		NV(n)=n
+	  Enddo
+	  Do n=1, Ni
+		call random_number(h1)
+		call random_number(h2)
+		i1=1+int(h1*Ni)
+		i2=1+int(h2*Ni)
+		vh1=NV(i1)
+		NV(i1)=NV(i2)
+		NV(i2)=vh1
+	 Enddo	  	
+     endsubroutine shuffle
+	 
+	 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	subroutine shuffleRand (NV,Ni)
+	  IMPLICIT REAL*8 (A-H,O-Z)
+      Dimension::NV(Ni)
+	  
+     Nv=0
+	  Do n=1, Ni
+		call random_number(h1)
+		
+		i1=1+int(h1*Ni)
+		NV(n)=i1
+	 Enddo	  	
+     endsubroutine shuffleRand
+     
