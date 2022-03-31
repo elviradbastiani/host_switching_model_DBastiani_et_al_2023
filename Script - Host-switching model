@@ -42,6 +42,7 @@ call RANDOM_SEED()
 	allocate(Ordem(sizeH),Mdis(sizeH,sizeH),Mdis2(sizeH,sizeH))
 	Ordem=0
 	Mdis=0.0
+	!defining the evolutionary distance matrix between host species
 	OPEN(UNIT=50,FILE='Mdis.txt',STATUS='old')
 	read(50,*)  (Ordem(j), j=1, sizeH)
 
