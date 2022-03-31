@@ -12,7 +12,8 @@ Effect of host-switching on the eco-evolutionary patterns of parasites
 !--------------------------------------------------------------------------------------------------------------------------------------
 
 program HDmodel
-	
+
+	!defining the parameters	
 	implicit none
 	real,ALLOCATABLE :: Q(:,:), Q2(:,:)
 	integer, ALLOCATABLE :: iPair(:,:),P(:,:),P2(:,:),Ms(:,:), Seq(:), Ordem(:),Mdis(:,:),Mdis2(:,:)
@@ -27,8 +28,8 @@ program HDmodel
 
 call RANDOM_SEED()
 
-	
-	OPEN(UNIT=50,FILE='input_host.txt',STATUS='old')!host evolutionary history 
+	!setting the host evolutionary history 	
+	OPEN(UNIT=50,FILE='input_host.txt',STATUS='old')
 	read(50,*) nu_host, sizeH,nsteps, TA 				
 	allocate (M_input(nu_host,3))		
 	M_input=0
@@ -65,27 +66,36 @@ call RANDOM_SEED()
 	103 FORMAT(I8,5000(1X,I3)) 
 	104 format(I3)	
 		
-
+	!defining the carring capacity
 	Nphost=50
 	N=Nphost
 	ndes=N
+	
+	!defining the mutation rate
 	rmut = 0.025d0	
+	
+	!defining the repetitions
 	rfinal=50
 	cte = exp(-4.0*rmut)/4.0	
+
+	!defining the time for allopatric speciation
 	nresu=Nint(TA/5.0)
 	Allocate(Q(N,N),Q2(N,N), iPair(N,2),P(N,2),P2(N,2),Ms(ndes*100,4),Seq(N))
 
-
+!defining the minimum genetic similarity
 Qmin=0.5/(1.0+4.0*rmut*N) 
 
+!loop for repetitions
 Do rep=1, rfinal 
 write(nameRep,'(I6)') rep	
 
 call random_number(h1)
 
+!defining the r parameter
 OPEN(UNIT=51,FILE='input_r.txt',STATUS='old')!our beta is the r parameter
 read(51,*) beta, betafinal
 
+	!loop for r parameter
 	Do while(beta.le.betafinal)  	
 		N=Nphost					
 		ndes=N
@@ -111,6 +121,7 @@ read(51,*) beta, betafinal
 		
 		OPEN(UNIT=62,FILE='InteractionRep'//trim(adjustl(nameRep))//'beta'//trim(adjustl(name))//'T'//&
 							trim(adjustl(nTime))//'.txt',STATUS='UNKNOWN')
+		!loop for evolutionary time
 		Do nt = 1, nsteps 
 
 				if(mod(nt,100).eq.0) then 
@@ -130,6 +141,7 @@ read(51,*) beta, betafinal
 					endif
 
 		Ni=0
+			!loop for each host species
 			Do host=1, nHatual
 			npais=count(P(:,2).eq.host)
 			if(npais.le.1) then 
@@ -152,9 +164,10 @@ read(51,*) beta, betafinal
 			linha_final=linha_in+npais-1
 			
 				contmae=1  
-			    contpai=1 
+			   	contpai=1 
 				ntentmae=0
-						
+				
+				!loop for parasite reproduction 		
 				Do while (cont.lt.ndes)
 				call random_number(h1)
 				ichosen=linha_in+int(h1*npais)
@@ -212,6 +225,8 @@ read(51,*) beta, betafinal
 	
 
 	if (nHatual.gt.1) then
+               
+                !loop for host-switching event	
 		Do i=1, N
 			Do ntent=1,nHatual
 				HH1=P(i,2)
@@ -253,7 +268,7 @@ read(51,*) beta, betafinal
    endif		
 	
 	if(mod(nt,nresu).eq.0) then
-	      
+	      !subroutine to define the species
 	      call species(Q,P,N,ndes,Qmin,MS,nt, Nespecie,nsteps)		  
 
 	endif
@@ -315,10 +330,11 @@ read(51,*) beta, betafinal
 	Enddo
 			
 32  continue
-					
+					                !save the output - phylogeny	
 							OPEN(UNIT=61,FILE='FiloParRep'//trim(adjustl(nameRep))//'beta'//trim(adjustl(name))//'T'//&
 							trim(adjustl(nTime))//'.txt',STATUS='UNKNOWN')!ajustl
-					
+
+					        !save the output - interactions
 						do j=1, Nespecie 
 							write(61,*) MS(j,1),MS(j,2),MS(j,3),MS(j,4)										
 						enddo	
@@ -340,6 +356,7 @@ end program HDmodel
 !Subrotines!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!subroutine to define the species
 subroutine species(Q,P,np,ndes,Qmin,MS,ig, Nespecie,nsteps)  
 	implicit none
     real:: Q,Qmin,sim,QminEspecie                           			
